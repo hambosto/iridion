@@ -1,5 +1,6 @@
-use clap::Parser;
 use std::path::PathBuf;
+
+use clap::Parser;
 
 #[derive(Parser)]
 #[command(name = "iridion", about = "Extract base16 color palettes from images using Oklch perceptual clustering")]

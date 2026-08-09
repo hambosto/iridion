@@ -1,6 +1,7 @@
+use std::path::Path;
+
 use anyhow::{Context, Result};
 use image::imageops::FilterType;
-use std::path::Path;
 
 use crate::color::Color;
 
