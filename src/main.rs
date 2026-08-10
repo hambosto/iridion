@@ -10,6 +10,7 @@ use clap::Parser;
 use image::imageops::FilterType;
 
 use crate::cli::Cli;
+use crate::cluster::ClusteringResult;
 use crate::color::Color;
 use crate::palette::Palette;
 
@@ -25,7 +26,7 @@ fn load_pixels(path: &Path) -> Result<Vec<Color>> {
 fn main() -> Result<()> {
     let args = Cli::parse();
     let pixels = load_pixels(&args.image)?;
-    let result = cluster::extract_dominant_colors(pixels);
+    let result = ClusteringResult::extract(pixels);
     let palette = Palette::generate(&result, args.contrast);
 
     println!("{}", palette.to_json()?);
