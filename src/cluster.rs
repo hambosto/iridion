@@ -45,7 +45,7 @@ fn normalize_in_place(pixels: &mut [[f64; 3]]) -> ([f64; 3], [f64; 3]) {
             mean[c] += p[c];
         }
     }
-    for m in mean.iter_mut() {
+    for m in &mut mean {
         *m /= n;
     }
 
@@ -121,87 +121,77 @@ fn cluster_with_offset(normalized: &[[f64; 3]], mean: [f64; 3], std: [f64; 3], o
 }
 
 fn run_lloyds_clustering(normalized: &[[f64; 3]], centers: &mut [[f64; 3]; NUM_CLUSTERS], sectors: &[[f64; 2]; NUM_CLUSTERS], active: &mut [bool; NUM_CLUSTERS]) -> Vec<u8> {
-    let n = normalized.len();
-    let mut labels = vec![UNASSIGNED; n];
-    let mut assignments = vec![0u8; n];
-    let mut sums = [[0.0; 3]; NUM_CLUSTERS];
-    let mut counts = [0usize; NUM_CLUSTERS];
-    let mut remaining = n;
+    let mut labels = vec![UNASSIGNED; normalized.len()];
 
     for _ in 0..MAX_ITERS {
-        if active.iter().all(|&a| !a) || remaining == 0 {
+        let has_work = active.iter().any(|&a| a) && labels.contains(&UNASSIGNED);
+        if !has_work {
             break;
         }
 
-        for s in sums.iter_mut() {
-            *s = [0.0; 3];
-        }
-        counts.fill(0);
+        let mut sums = [[0.0; 3]; NUM_CLUSTERS];
+        let mut counts = [0usize; NUM_CLUSTERS];
+        let assignments: Vec<u8> = labels
+            .iter()
+            .zip(normalized)
+            .map(|(label, point)| {
+                if *label != UNASSIGNED {
+                    return *label;
+                }
+                let k = find_nearest_active(*point, centers, active);
+                sums[k].iter_mut().zip(point).for_each(|(s, p)| *s += p);
+                counts[k] += 1;
+                k as u8
+            })
+            .collect();
 
-        for i in 0..n {
-            if labels[i] != UNASSIGNED {
-                continue;
-            }
-
-            let k = find_nearest_active(normalized[i], centers, active);
-            assignments[i] = k as u8;
-
-            for c in 0..3 {
-                sums[k][c] += normalized[i][c];
-            }
-            counts[k] += 1;
-        }
-
-        let mut changed = false;
-        for k in 0..NUM_CLUSTERS {
+        let converged = (0..NUM_CLUSTERS).fold(true, |stable, k| {
             if !active[k] || counts[k] == 0 {
-                continue;
+                return stable;
             }
 
             let inv = 1.0 / counts[k] as f64;
             let new_center = [sums[k][0] * inv, sums[k][1] * inv, sums[k][2] * inv];
             let shift_sq: f64 = (0..3).map(|c| new_center[c] - centers[k][c]).map(|d| d * d).sum();
-            if shift_sq > TOLERANCE * TOLERANCE {
-                changed = true;
-            }
 
             let [lo, hi] = sectors[k];
-            let in_sector = if lo < hi { new_center[2] >= lo && new_center[2] < hi } else { new_center[2] >= lo || new_center[2] < hi };
-            if in_sector {
+            let in_bounds = if lo < hi { new_center[2] >= lo && new_center[2] < hi } else { new_center[2] >= lo || new_center[2] < hi };
+
+            if in_bounds {
                 centers[k] = new_center;
-                continue;
+                return stable && shift_sq <= TOLERANCE * TOLERANCE;
             }
 
+            let hue = new_center[2];
             let clamped = if lo < hi {
-                if new_center[2] < lo { lo } else { hi }
+                if hue < lo { lo } else { hi }
             } else {
-                let d_lo = (new_center[2] - lo).abs().min(360.0 - (new_center[2] - lo).abs());
-                let d_hi = (new_center[2] - hi).abs().min(360.0 - (new_center[2] - hi).abs());
+                let d_lo = (hue - lo).abs().min(360.0 - (hue - lo).abs());
+                let d_hi = (hue - hi).abs().min(360.0 - (hue - hi).abs());
                 if d_lo < d_hi { lo } else { hi }
             };
             centers[k] = [new_center[0], new_center[1], clamped];
             active[k] = false;
-            changed = true;
 
-            let locked = k as u8;
-            for (label, &assign) in labels.iter_mut().zip(&assignments) {
-                if assign == locked && *label == UNASSIGNED {
-                    *label = locked;
-                    remaining -= 1;
+            labels.iter_mut().zip(&assignments).filter(|(_, a)| **a == k as u8).for_each(|(label, _)| {
+                if *label == UNASSIGNED {
+                    *label = k as u8;
                 }
-            }
-        }
+            });
 
-        if !changed {
+            false
+        });
+
+        if converged {
             break;
         }
     }
 
-    for (label, &assign) in labels.iter_mut().zip(&assignments) {
+    labels.iter_mut().zip(normalized).for_each(|(label, point)| {
         if *label == UNASSIGNED {
-            *label = assign;
+            *label = find_nearest_active(*point, centers, active) as u8;
         }
-    }
+    });
 
     labels
 }

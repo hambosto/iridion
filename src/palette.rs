@@ -52,7 +52,7 @@ fn build_accent_colors(result: &ClusteringResult, contrast: f64) -> [Color; 8] {
     let mean_ch = centers.iter().map(|c| c.chroma).sum::<f64>() / NUM_CLUSTERS as f64;
     if mean_ch > 0.0 && scale != 1.0 {
         let factor = result.avg_chroma * scale / mean_ch;
-        for c in centers.iter_mut() {
+        for c in &mut centers {
             c.chroma *= factor;
         }
     }
@@ -82,21 +82,18 @@ fn build_accent_colors(result: &ClusteringResult, contrast: f64) -> [Color; 8] {
             _ => None,
         };
 
-        match blend {
-            Some(a) => {
-                for c in centers.iter_mut() {
-                    c.l += a * (target - c.l);
-                }
+        if let Some(a) = blend {
+            for c in &mut centers {
+                c.l += a * (target - c.l);
             }
-            None => {
-                let range = max_l - min_l;
-                for c in centers.iter_mut() {
-                    c.l = if range > 0.0 {
-                        (c.l - min_l) / range * (1.0 - MIN_LIGHTNESS_FLOOR) + MIN_LIGHTNESS_FLOOR
-                    } else {
-                        MIN_LIGHTNESS_FLOOR
-                    };
-                }
+        } else {
+            let range = max_l - min_l;
+            for c in &mut centers {
+                c.l = if range > 0.0 {
+                    (c.l - min_l) / range * (1.0 - MIN_LIGHTNESS_FLOOR) + MIN_LIGHTNESS_FLOOR
+                } else {
+                    MIN_LIGHTNESS_FLOOR
+                };
             }
         }
     }
@@ -109,7 +106,6 @@ fn find_dual_tones(result: &ClusteringResult) -> (Color, Color) {
     active.sort_by(|a, b| a.1.color.hue.total_cmp(&b.1.color.hue));
 
     let neutral = Color::new(0.5, 0.0, 0.0);
-
     match active.as_slice() {
         [] => (neutral, neutral),
 

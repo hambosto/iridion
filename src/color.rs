@@ -13,7 +13,7 @@ impl Color {
     }
 
     pub fn from_rgb(r: u8, g: u8, b: u8) -> Self {
-        let oklch: Oklch<f64> = Srgb::new(r as f64 / 255.0, g as f64 / 255.0, b as f64 / 255.0).into_color();
+        let oklch: Oklch<f64> = Srgb::new(f64::from(r) / 255.0, f64::from(g) / 255.0, f64::from(b) / 255.0).into_color();
 
         Self::new(oklch.l, oklch.chroma, oklch.hue.into_inner())
     }
