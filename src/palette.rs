@@ -110,6 +110,7 @@ fn zone_weighted_average(zone: &[&Swatch]) -> Color {
         let weight = swatch.pixel_count as f64 * reciprocal_total;
         lightness_sum += swatch.color.l * weight;
         chroma_sum += swatch.color.chroma * weight;
+
         let hue_radians = swatch.color.hue.to_radians();
         hue_cos_sum += hue_radians.cos() * weight;
         hue_sin_sum += hue_radians.sin() * weight;

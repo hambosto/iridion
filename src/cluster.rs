@@ -166,7 +166,6 @@ fn run_hue_locked_kmeans(normalized: &[[f64; 3]], stats: &ZScore, offset: f64) -
 
             let reciprocal_count = 1.0 / pixel_counts[cluster_idx] as f64;
             let new_center = [center_sums[cluster_idx][0] * reciprocal_count, center_sums[cluster_idx][1] * reciprocal_count, center_sums[cluster_idx][2] * reciprocal_count];
-
             let shift_squared: f64 = (0..3).map(|channel| new_center[channel] - centers[cluster_idx][channel]).map(|delta| delta * delta).sum();
             if shift_squared > TOLERANCE * TOLERANCE {
                 any_changed = true;
@@ -245,6 +244,7 @@ fn score_active_clusters(swatches: &[Swatch; NUM_CLUSTERS], total_pixels: usize)
 pub fn extract_dominant_colors(pixels: Vec<Color>) -> ClusteringResult {
     let filtered_pixels: Vec<Color> = pixels.iter().copied().filter(|pixel| pixel.chroma >= CHROMA_THRESHOLD).collect();
     let avg_chroma = filtered_pixels.iter().map(|p| p.chroma).sum::<f64>() / filtered_pixels.len() as f64;
+
     let mut data: Vec<[f64; 3]> = filtered_pixels.iter().map(|p| [p.l, p.chroma, p.hue]).collect();
     let stats = ZScore::normalize_in_place(&mut data);
     let (swatches, labels) = select_best_offset(&data, &stats);
