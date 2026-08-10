@@ -1,32 +1,34 @@
 mod cli;
 mod cluster;
 mod color;
-mod loader;
 mod palette;
-mod pixels;
 
-use anyhow::Result;
+use std::path::Path;
+
+use anyhow::{Context, Result};
 use clap::Parser;
+use image::imageops::FilterType;
 
 use crate::cli::Cli;
-use crate::cluster::ClusterSet;
 use crate::color::Color;
 use crate::palette::Palette;
-use crate::pixels::Pixels;
 
-fn generate_theme(pixels: Vec<Color>, contrast: f64) -> Result<Palette> {
-    let prepared = Pixels::new(pixels)?;
-    let cluster_set = ClusterSet::new(&prepared.pixels);
+const RESIZE: u32 = 256;
 
-    Ok(Palette::new(&cluster_set, contrast, prepared.avg_chroma, &prepared.pixels))
+fn load_pixels(path: &Path) -> Result<Vec<Color>> {
+    let source = image::open(path).context("failed to open image")?;
+    let rgb = source.resize_exact(RESIZE, RESIZE, FilterType::Nearest).into_rgb8();
+
+    Ok(rgb.pixels().map(|p| Color::from_rgb(p[0], p[1], p[2])).collect())
 }
 
 fn main() -> Result<()> {
     let args = Cli::parse();
-    let pixels = loader::load_pixels(&args.image)?;
-    let theme = generate_theme(pixels, args.contrast)?;
+    let pixels = load_pixels(&args.image)?;
+    let result = cluster::extract_dominant_colors(pixels);
+    let palette = Palette::generate(&result, args.contrast);
 
-    println!("{}", theme.to_json_pretty()?);
+    println!("{}", palette.to_json()?);
 
     Ok(())
 }
