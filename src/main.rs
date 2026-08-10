@@ -26,10 +26,10 @@ fn load_pixels(path: &Path) -> Result<Vec<Color>> {
 fn main() -> Result<()> {
     let args = Cli::parse();
     let pixels = load_pixels(&args.image)?;
-    let result = ClusteringResult::extract(pixels);
-    let palette = Palette::generate(&result, args.contrast);
+    let result = ClusteringResult::build_from_pixels(pixels);
+    let palette = Palette::generate_from_clusters(&result, args.contrast);
 
-    println!("{}", palette.to_json()?);
+    println!("{}", palette.to_json_string()?);
 
     Ok(())
 }
