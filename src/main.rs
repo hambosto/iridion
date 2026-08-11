@@ -14,20 +14,19 @@ use crate::cluster::ClusteringResult;
 use crate::color::Color;
 use crate::palette::Palette;
 
-const RESIZE: u32 = 256;
-
 fn load_pixels(path: &Path) -> Result<Vec<Color>> {
     let source = image::open(path).context("failed to open image")?;
-    let rgb = source.resize_exact(RESIZE, RESIZE, FilterType::Nearest).into_rgb8();
+    let resized = source.resize_exact(256, 256, FilterType::Nearest);
+    let rgb = resized.into_rgb8();
 
-    Ok(rgb.pixels().map(|p| Color::from_rgb(p[0], p[1], p[2])).collect())
+    Ok(rgb.pixels().map(|p| Color::from_srgb(p[0], p[1], p[2])).collect())
 }
 
 fn main() -> Result<()> {
     let args = Cli::parse();
     let pixels = load_pixels(&args.image)?;
-    let result = ClusteringResult::build_from_pixels(pixels);
-    let palette = Palette::generate_from_clusters(&result, args.contrast);
+    let result = ClusteringResult::from_pixels(&pixels);
+    let palette = Palette::from_clusters(&result, args.contrast);
 
     println!("{}", palette.to_json_string()?);
 

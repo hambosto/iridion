@@ -12,13 +12,13 @@ impl Color {
         Self { l, chroma, hue: hue.rem_euclid(360.0) }
     }
 
-    pub fn from_rgb(r: u8, g: u8, b: u8) -> Self {
+    pub fn from_srgb(r: u8, g: u8, b: u8) -> Self {
         let oklch: Oklch<f64> = Srgb::new(f64::from(r) / 255.0, f64::from(g) / 255.0, f64::from(b) / 255.0).into_color();
 
         Self::new(oklch.l, oklch.chroma, oklch.hue.into_inner())
     }
 
-    pub fn to_rgb(self) -> (u8, u8, u8) {
+    pub fn to_srgb(self) -> (u8, u8, u8) {
         let srgb: Srgb<f64> = Oklch::new(self.l, self.chroma, self.hue).into_color();
         let srgb = srgb.clamp();
 
@@ -26,7 +26,7 @@ impl Color {
     }
 
     pub fn to_hex(self) -> String {
-        let (r, g, b) = self.to_rgb();
+        let (r, g, b) = self.to_srgb();
 
         hex::encode([r, g, b])
     }
